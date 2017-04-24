@@ -9,6 +9,7 @@ stouffbed.cli
 import click
 
 from . import __version__
+from .stouff import horizontal_stouff, bed_reader
 
 shared_options = [
     click.option("--input", "-i", type=click.Path(exists=True),
@@ -50,7 +51,7 @@ def cli(**kwargs):
 
 @click.command(short_help="Across bed files")
 @generic_option(shared_options)
-@click.option("--output", "-o", type=click.Path(exists=True),
+@click.option("--output", "-o", type=click.Path(exists=False),
               required=True, help="Path to output bed file")
 def horizontal_cli(**kwargs):
     """
@@ -64,12 +65,23 @@ def horizontal_cli(**kwargs):
     Input files must have the exact same regions, in exactly the same
     order.
     """
-    pass
+    input_filenames = kwargs.get("input")
+    output_name = kwargs.get("output")
+    readers = [bed_reader(x) for x in input_filenames]
+    with open(output_name, "w") as ohandle:
+        for item in horizontal_stouff(readers):
+            line = "{0}\t{1}\t{2}\t{3}\n".format(
+                item.chromosome,
+                item.start,
+                item.end,
+                item.value
+            )
+            ohandle.write(line)
 
 
 @click.command(short_help="Within bed files")
 @generic_option(shared_options)
-@click.option("--output", "-o", type=click.Path(exists=True),
+@click.option("--output", "-o", type=click.Path(exists=False),
               required=True, help="Path(s) to output bed file(s)",
               multiple=True)
 @click.option("--window-size", "-w", type=int, default=3)
