@@ -7,7 +7,7 @@ stouffbed.stouff
 """
 
 from collections import namedtuple
-from math import sqrt
+from math import sqrt, ceil
 from numpy import isnan, nan
 
 BedLine = namedtuple("BedLine", ['chromosome', 'start', 'end', 'value'])
@@ -50,7 +50,7 @@ def check_region_identical(records):
 
 def horizontal_stouff(readers):
     """
-    Create a generator returnin stouffer's z-scores
+    Create a generator returning stouffer's z-scores
     across readers
     :param readers: bed readers 
     :return: Generator of BedLine records
@@ -62,3 +62,50 @@ def horizontal_stouff(readers):
         values = [float(x.value) for x in lines]
         st = stouff_score(values)
         yield BedLine(lines[0].chromosome, lines[0].start, lines[0].end, st)
+
+
+def get_nearest_at_idx(values, idx, window):
+    """
+    Get sublist of elements nearest to a certain index
+    :param values: list
+    :param idx: the index  
+    :param window: the margin that constitutes "near"
+    :return: sublist
+    """
+    e_dist = len(values) - idx
+    # starting edge; if distance from start less
+    # or equal to half the window size
+    if idx == 0 or 0 < idx <= window // 2:
+        vals = values[:window]
+    # ending edge; if distance from end is less
+    # or equal to half the window size
+    elif e_dist <= window // 2:
+        vals = values[-window:]
+    else:
+        vals = values[idx - (window // 2):idx + int(ceil((window / 2)))]
+    return vals
+
+
+def vertical_stouff(reader, window_size):
+    """
+    Create a generator returning stouffer's z-scores along a window
+    within a reader
+    :param reader: Bed reader
+    :param window_size: window size
+    :return: generator of bedLines
+    """
+    records = [x for x in reader]  # must hold in memory
+    for i, r in enumerate(records):
+        near_records = get_nearest_at_idx(records, i, window_size)
+        st = stouff_score([float(x.value) for x in near_records])
+        yield BedLine(r.chromosome, r.start, r.end, st)
+
+
+def bed_to_string(bed_record):
+    return "{0}\t{1}\t{2}\t{3}".format(
+        bed_record.chromosome,
+        bed_record.start,
+        bed_record.end,
+        bed_record.value
+    )
+

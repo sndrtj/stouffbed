@@ -9,7 +9,8 @@ stouffbed.cli
 import click
 
 from . import __version__
-from .stouff import horizontal_stouff, bed_reader
+from .stouff import horizontal_stouff, bed_reader, \
+    vertical_stouff, bed_to_string
 
 shared_options = [
     click.option("--input", "-i", type=click.Path(exists=True),
@@ -70,35 +71,33 @@ def horizontal_cli(**kwargs):
     readers = [bed_reader(x) for x in input_filenames]
     with open(output_name, "w") as ohandle:
         for item in horizontal_stouff(readers):
-            line = "{0}\t{1}\t{2}\t{3}\n".format(
-                item.chromosome,
-                item.start,
-                item.end,
-                item.value
-            )
+            line = bed_to_string(item) + "\n"
             ohandle.write(line)
 
 
 @click.command(short_help="Within bed files")
 @generic_option(shared_options)
 @click.option("--output", "-o", type=click.Path(exists=False),
-              required=True, help="Path(s) to output bed file(s)",
-              multiple=True)
+              required=True, help="Path(s) to output bed file(s)")
 @click.option("--window-size", "-w", type=int, default=3)
 def vertical_cli(**kwargs):
     """
-    Calculate Stouffer's zscores within files
-
-    \b
-    Order of input and output files on command line must be identical.
-    E.g.:
-      * "stouffbed vertical -i 1.bed -i 2.bed -o 1.out.bed -o 2.out.bed" -> correct
-      * "stouffbed vertical -i 1.bed -i 2. bed -o 2.out.bed -o 1.out.bed" -> incorrect
+    Calculate Stouffer's zscores within a file
 
     \b
     Stouffer zscores will be calculate for window size `w`.
     """
-    pass
+    input_files = kwargs.get("input")
+    output = kwargs.get("output")
+    window = kwargs.get("window_size")
+
+    if len(input_files) > 1:
+        raise ValueError("Vertical mode does not support multiple inputs")
+    reader = bed_reader(input_files[0])
+    with open(output, "w") as ohandle:
+        for item in vertical_stouff(reader, window):
+            line = bed_to_string(item) + "\n"
+            ohandle.write(line)
 
 
 def main():
